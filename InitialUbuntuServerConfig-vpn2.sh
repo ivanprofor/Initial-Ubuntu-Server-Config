@@ -5,11 +5,12 @@
 # @TODO audit or intrusion system
 
 # Made with love to be executed on an Ubuntu 16.04 LTS droplet
+# This script configures the UFW for OpenVPN and installs the service from a repository
 
 # Checking if the script is running as root
 if [[ "$EUID" -ne 0 ]]; then
-  echo "Sorry, you need to run this as root"
-  exit 1
+	echo "Sorry, you need to run this as root"
+	exit 1
 fi
 
 # VARIABLES SECTION
@@ -19,12 +20,16 @@ fi
 hstnm=gw2.dirigio.it
 # SSHD config file
 sshdc=/etc/ssh/sshd_config
+# SSH Publcic key
+sshkey="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQD+P+eX68j7KULVp0QcXto39i74c4qiFVcFz24H8NDnoE7eGtOpEMeaXZhXtD5vyc8O/tZ9zrN0dUNc6sPgujSDn/49h8tvm+oZ3pkVsUdcmyKq7vZJODpUcxNfm5OG5GzA0Ao+C7ONihDQwS5ZkY9K838iZxAPfURV5Wn9IAF5fWeR+XhQiixNdSbHsoA7D4SlxgfqdFzwbB3HvJJq8SpI+nrYszyYJ8ZONQ08dBzm/zx5zk5ZnCIa8eNpCeydoTzKFjfzdb9iKUsUz/FeR/K3On1I1n0AEV9JTVm7MU1kiflx83aKn4uRRmWMGPJUrZBcpESI/h11R1QlZUM2C2MEberMb9AS5EfSga6gfY9eVQdpA3bG/e40TLxtNDdzqH6Fqt7I5qWz6ii4/NFR0hgQWxLNSgpRzx50XCHYMDXD1uINqvJZYKFPbv9r9Aoe5golYYsJnFC41LIuBkeK4IOsB5uTw+mQV8/cUSm91u/Mwy678WMC7KIjIO68ABJsgpcEDRnYkiFoV74p8p8AJhIMherS8oBQOAZhHcRyFYC5Hr/p3ZvKHoNGJ8oaubFUODCzcMDXCy6AcKHvv5iOHN0GrTMYK81hyuzXiAScvbTT9wxHGzJVeTDH1vzKGLvzvpSkP1WTPoF/12Ai76pJVKYfBX+Xc97L1t0ZJyKKtkVghQ== profor@vanea.net"
 # Sources.list file
 slist=/etc/apt/sources.list
 # SSH port
 sshp=7539
 # LoginGraceTime
 sshlgt=1440m
+#OpenVPN port
+opvpnp=1194
 # Installation log
 rlog=~/installation.log
 # Backup extension
@@ -34,17 +39,17 @@ dn=/dev/null 2>&1
 
 # Echoes that there is no X file
 nofile_echo () {
-  echo -e "\e[31mThere is no file named:\e[0m \e[1m\e[31m$@\e[0m";
+	echo -e "\e[31mThere is no file named:\e[0m \e[1m\e[31m$@\e[0m";
 }
 
 # Echoes a standard message
 std_echo () {
-  echo -e "\e[32mPlease check it manually.\e[0m";
-  echo -e "\e[1m\e[31mThis step stops here.\e[0m";
+	echo -e "\e[32mPlease check it manually.\e[0m";
+	echo -e "\e[1m\e[31mThis step stops here.\e[0m";
 }
 
 blnk_echo() {
-  echo "" >> $rlog
+	echo "" >> $rlog
 }
 
 # Echoes activation of a specific application option ($@)
@@ -62,7 +67,7 @@ scn_echo () {
 }
 
 sctn_echo () {
-  echo -e "\e[1m\e[33m$@\e[0m\n==================================================================================================" >> $rlog
+	echo -e "\e[1m\e[33m$@\e[0m\n==================================================================================================" >> $rlog
 }
 
 # Echoes that a specific application ($@) is being installed
@@ -71,18 +76,18 @@ inst_echo () {
 }
 
 chg_unat10 () {
-  # The following options will have unattended-upgrades check for updates every day while cleaning out the local download archive each week.
-  echo "
+	# The following options will have unattended-upgrades check for updates every day while cleaning out the local download archive each week.
+	echo "
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Download-Upgradeable-Packages "1";
 APT::Periodic::AutocleanInterval "7";
-  APT::Periodic::Unattended-Upgrade "1";" > $unat10;
+APT::Periodic::Unattended-Upgrade "1";" > $unat10;
 }
 
 # Backing up a given ($@) file/directory
 bckup () {
-  echo -e "Backing up: \e[1m\e[34m$@\e[0m ..." >> $rlog
-  cp -r $@ $@_$(date +"%m-%d-%Y")."$bckp";
+	echo -e "Backing up: \e[1m\e[34m$@\e[0m ..." >> $rlog
+	cp -r $@ $@_$(date +"%m-%d-%Y")."$bckp";
 }
 
 # Updates/upgrades the system
@@ -99,8 +104,8 @@ up () {
 
 # Installation
 inst () {
-  apt-get -yqqf install $@ > /dev/null >> $rlog
-  blnk_echo
+	apt-get -yqqf install $@ > /dev/null >> $rlog
+	blnk_echo
 }
 
 # ------------------------------------------
@@ -112,21 +117,34 @@ sctn_echo FIREWALL "(UFW)"
 
 bckup /etc/ufw/ufw.conf;
 
-# Disabling IPV6 in UFW && Opening $sshp/tcp and Limiting incomming connections to the SSH port
+# Disabling IPV6 in UFW && Opening $sshp/tcp && Opening UDP incoming connections for OpenVPN && and Limiting incomming connections to the SSH and OpenVPN ports
 
 # For Trabia
 # Removing "md." from every URL
 if [[ $(cat $slist | grep -w "md") ]]; then
-  bckup $slist;
-  sed -i -re s/md.//g $slist;
-  # Forcing apt-get to access repos through IPV4
-  echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
-  
-  # Renaming the hostname
-  echo $hstnm > /etc/hostname;
+	bckup $slist;
+	sed -i -re s/md.//g $slist;
+
+	# Forcing apt-get to access repos through IPV4
+	echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
+
+	# Renaming the hostname
+	echo $hstnm > /etc/hostname;
+
+	# Create SSH folder with 700 permissions
+	mkdir -m 700 ~/.ssh;
+
+	# Authorized_keys file needs 644 permissions
+	echo $sshkey > ~/.ssh/authorized_keys && chmod 644 ~/.ssh/authorized_keys;
+
+	# Disabling SSH password authentication
+	# cat /etc/ssh/sshd_config | grep "ChallengeResponseAuthentication" && cat /etc/ssh/sshd_config | grep "PasswordAuthentication" && cat /etc/ssh/sshd_config | grep "UsePAM" && cat /etc/ssh/sshd_config | grep "PermitRootLogin"
+	bckup $sshdc;
+	sed -i -re 's/^(ChallengeResponseAuthentication)([[:space:]]+)yes/\1\2'no'/' -e 's/^(\#)(PasswordAuthentication)([[:space:]]+)(.*)/\2\3\4/' -e 's/^(PasswordAuthentication)([[:space:]]+)yes/\1\2'no'/' $sshdc;
+	service ssh restart
 fi
 
-(echo "IPV6=no" >> /etc/ufw/ufw.conf && ufw limit $sshp/tcp && ufw --force enable) >> $rlog
+(echo "IPV6=no" >> /etc/ufw/ufw.conf && ufw limit $sshp/tcp && ufw limit $opvpnp/udp && ufw --force enable) >> $rlog
 
 blnk_echo
 
@@ -151,25 +169,25 @@ unat10=/etc/apt/apt.conf.d/10periodic;
 
 # Cheking the existence of the $unat20, $unat50, $unat10 configuration files
 if [[ -f $unat20 ]] && [[ -f $unat50 ]] && [[ -f $unat10 ]]; then
-  
-  for i in $unat20 $unat50 $unat10; do
-    bckup $i && mv $i*."$bckp" ~;
-  done
-  
-  
-  # Inserting the right values into it
-  echo "
+
+	for i in $unat20 $unat50 $unat10; do
+		bckup $i && mv $i*."$bckp" ~;
+	done
+
+
+	# Inserting the right values into it
+	echo "
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
-  APT::Periodic::Verbose "2";" > $unat20
-  
-  
-  # Checking if line for security updates is uncommented, by default it is
-  if [[ $(cat $unat50 | grep -wx '[[:space:]]"${distro_id}:${distro_codename}-security";') ]]; then
-    
-    chg_unat10;
-  else
-    echo "
+APT::Periodic::Verbose "2";" > $unat20
+
+
+	# Checking if line for security updates is uncommented, by default it is
+	if [[ $(cat $unat50 | grep -wx '[[:space:]]"${distro_id}:${distro_codename}-security";') ]]; then
+
+		chg_unat10;
+	else
+		echo "
 // Automatically upgrade packages from these (origin:archive) pairs
 Unattended-Upgrade::Allowed-Origins {
 	"${distro_id}:${distro_codename}";
@@ -234,19 +252,19 @@ Unattended-Upgrade::Package-Blacklist {
 
 // Use apt bandwidth limit feature, this example limits the download
 // speed to 70kb/sec
-    //Acquire::http::Dl-Limit "70";" > $unat50
-    
-    chg_unat10;
-  fi
-  
-  # The results of unattended-upgrades will be logged to /var/log/unattended-upgrades.
-  # For more tweaks nano /etc/apt/apt.conf.d/50unattended-upgrades
-  
-  blnk_echo >> $rlog
-  
+//Acquire::http::Dl-Limit "70";" > $unat50
+
+		chg_unat10;
+	fi
+
+	# The results of unattended-upgrades will be logged to /var/log/unattended-upgrades.
+	# For more tweaks nano /etc/apt/apt.conf.d/50unattended-upgrades
+
+	blnk_echo >> $rlog
+
 else
-  nofile_echo $unat20 or $unat50 or $unat10
-  std_echo;
+	nofile_echo $unat20 or $unat50 or $unat10
+	std_echo;
 fi
 
 blnk_echo
@@ -266,8 +284,8 @@ appcli="arp-scan clamav clamav-daemon clamav-freshclam curl git glances htop ipt
 
 # The main multi-loop for installing apps/libs
 for a in $appcli; do
-  inst_echo $a;
-  inst $a;
+	inst_echo $a;
+	inst $a;
 done
 
 blnk_echo
@@ -305,14 +323,14 @@ blnk_echo
 # # END: ClamAV section: configuration and the first scan
 
 
-# # Cloning OpenVPN installation script
-# sctn_echo OPENVPN
-# cd ~ && git clone https://github.com/iprofor/OpenVPN-install && cd OpenVPN-install && chmod 755 openvpn-install.sh && /bin/bash openvpn-install.sh;
-#
-# echo "Enabling multiple logins ..." >> $rlog
-# echo "duplicate-cn" >> /etc/openvpn/server.conf;
-# service openvpn@server restart;
-# blnk_echo
+# Cloning OpenVPN installation script
+sctn_echo OPENVPN
+cd ~ && git clone -b DEV https://github.com/iprofor/OpenVPN-install && cd OpenVPN-install && chmod 755 openvpn-install2.sh && /bin/bash openvpn-install.sh;
+
+echo "Enabling multiple logins ..." >> $rlog
+echo "duplicate-cn" >> /etc/openvpn/server.conf;
+service openvpn@server restart;
+blnk_echo
 
 
 # @NOTE Will have to modify this loop to echo "Everything went well"  otherwise echo that something went wrong
