@@ -16,13 +16,13 @@ fi
 # -----------------------------------
 
 # Hostname
-hstnm=gw2.dirigio.it
+hstnm=dev.dirigio.it
 # SSHD config file
 sshdc=/etc/ssh/sshd_config
 # Sources.list file
 slist=/etc/apt/sources.list
 # SSH port
-sshp=7539
+sshp=28893
 # LoginGraceTime
 sshlgt=1440m
 # Installation log
@@ -72,8 +72,7 @@ inst_echo () {
 
 chg_unat10 () {
   # The following options will have unattended-upgrades check for updates every day while cleaning out the local download archive each week.
-  echo "
-APT::Periodic::Update-Package-Lists "1";
+  echo "APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Download-Upgradeable-Packages "1";
 APT::Periodic::AutocleanInterval "7";
   APT::Periodic::Unattended-Upgrade "1";" > $unat10;
@@ -108,23 +107,24 @@ inst () {
 
 
 ## UFW
+blnk_echo
 sctn_echo FIREWALL "(UFW)"
 
 bckup /etc/ufw/ufw.conf;
 
 # Disabling IPV6 in UFW && Opening $sshp/tcp and Limiting incomming connections to the SSH port
 
-# For Trabia
-# Removing "md." from every URL
-if [[ $(cat $slist | grep -w "md") ]]; then
-  bckup $slist;
-  sed -i -re s/md.//g $slist;
-  # Forcing apt-get to access repos through IPV4
-  echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
-  
-  # Renaming the hostname
-  echo $hstnm > /etc/hostname;
-fi
+# # For Trabia
+# # Removing "md." from every URL
+# if [[ $(cat $slist | grep -w "md") ]]; then
+#   bckup $slist;
+#   sed -i -re s/md.//g $slist;
+#   # Forcing apt-get to access repos through IPV4
+#   echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
+# 
+#   # Renaming the hostname
+#   echo $hstnm > /etc/hostname;
+# fi
 
 (echo "IPV6=no" >> /etc/ufw/ufw.conf && ufw limit $sshp/tcp && ufw --force enable) >> $rlog
 
@@ -143,6 +143,7 @@ service ssh restart
 
 
 ## Unattended-Upgrades configuration section
+blnk_echo
 sctn_echo AUTOUPDATES "(Unattended-Upgrades)"
 
 unat20=/etc/apt/apt.conf.d/20auto-upgrades;
@@ -158,8 +159,7 @@ if [[ -f $unat20 ]] && [[ -f $unat50 ]] && [[ -f $unat10 ]]; then
   
   
   # Inserting the right values into it
-  echo "
-APT::Periodic::Update-Package-Lists "1";
+  echo "APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
   APT::Periodic::Verbose "2";" > $unat20
   
@@ -262,7 +262,7 @@ up;
 sctn_echo INSTALLATION
 
 # The list of the apps
-appcli="arp-scan clamav clamav-daemon clamav-freshclam curl git glances htop iptraf mc ntp ntpdate rcconf rig screen shellcheck sysbench sysv-rc-conf tmux unattended-upgrades whois"
+appcli="clamav clamav-daemon clamav-freshclam git glances htop iptraf mc ntp ntpdate screen shellcheck sysbench sysv-rc-conf tmux unattended-upgrades"
 
 # The main multi-loop for installing apps/libs
 for a in $appcli; do
