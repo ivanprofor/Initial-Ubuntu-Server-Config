@@ -301,9 +301,6 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && add-a
 
 blnk_echo
 # Docker End
-
-## Updating/upgrading
-up;
    
 # The list of the apps
 # clamav clamav-daemon clamav-freshclam
@@ -315,22 +312,33 @@ for a in $appcli; do
   inst $a;
 done
 
+## Updating/upgrading
+up;
+
 # Docker installation loop
 appcli2="docker-ce docker-ce-cli containerd.io"
 
 # The main multi-loop for installing apps/libs
 for b in $appcli2; do
   inst_echo $b;
-  apt-get -yqqf install $b;
-  sleep 30
+  apt-get -y install $b;
 done
+
+blnk_echo
+
 
 # Docker-compose manual installation
 inst_echo Docker-compose;
 curl -L "https://github.com/docker/compose/releases/download/1.25.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose >> $rlog && chmod +x /usr/local/bin/docker-compose
 
+blnk_echo
+
+
 # Adding second user to the docker group so that it could execute docker commands
+echo "Adding second user $usr to the docker group ..." >> $rlog
 usermod -aG docker $usr
+
+blnk_echo
 
 
 # # ClamAV section: configuration and the first scan
@@ -377,11 +385,14 @@ usermod -aG docker $usr
 
 # Here goes fail2ban configuration
 sctn_echo FAIL2BAN CONFIGURATION
+blnk_echo
 
 # creating the working file based on the old one
 cp $f2bc $f2bl
 
 echo "Replacing the values in $f2bl ..." >> $rlog
+
+blnk_echo
 
 # The replacing process
 sed -i "s/^bantime  = 600/bantime  = 1800/" $f2bl && sed -i ':a;N;$!ba;s/banned.\nmaxretry = 5/banned.\nmaxretry = 2/g' $f2bl && sed -i "s/^destemail = root@localhost/destemail = me@iprofor.it/" $f2bl && sed -i "s/^sender = root@localhost/sender = noc@mariola.ro/" $f2bl && sed -i "s/^action = %(action_)s/action = %(action_mwl)s/" $f2bl && sed -i "s/^port    = ssh/port    = 28893/" $f2bl
