@@ -321,11 +321,12 @@ appcli2="docker-ce docker-ce-cli containerd.io"
 # The main multi-loop for installing apps/libs
 for b in $appcli2; do
   inst_echo $b;
-  inst $b;
+  apt-get -yqqf install $b;
+  sleep 30
 done
 
 # Docker-compose manual installation
-inst Docker-compose;
+inst_echo Docker-compose;
 curl -L "https://github.com/docker/compose/releases/download/1.25.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose >> $rlog && chmod +x /usr/local/bin/docker-compose
 
 # Adding second user to the docker group so that it could execute docker commands
