@@ -1,6 +1,5 @@
 #!/bin/bash
 # @TODO ntpdate
-# @TODO fail2ban http://www.servermom.org/how-to-install-fail2ban-to-protect-server-from-brute-force-ssh-login-attempts-ubuntu/
 # @TODO rkhunter
 # @TODO audit or intrusion system
 
@@ -31,6 +30,28 @@ rlog=~/installation.log
 bckp=bckp;
 # Shortenned /dev/null
 dn=/dev/null 2>&1
+
+# Secondary user
+usr=(bootik)
+# Secondary's user home SSH directory
+sdir=(/home/$usr/.ssh)
+
+# For fail2Ban jail.local
+f2bc=(/etc/fail2ban/jail.conf)
+f2bl=(/etc/fail2ban/jail.local)
+# bantime
+bntm=1800
+# findtime
+fntm=600
+# maxretry
+mxrt=3
+# Destination email
+dstml=me@iprofor.it
+# sender email
+sndr=noc@mariola.ro
+# action: will ban and send an email with the WhoIs report and all relevant lines in the log file.
+actn="%(action_mwl)s"
+
 
 # Echoes that there is no X file
 nofile_echo () {
@@ -140,6 +161,20 @@ echo "Configuring SSHD Daemon ..." >> $rlog
 sed -i -re 's/^(Port)([[:space:]]+)22/\1\2'$sshp'/' -e 's/^(LoginGraceTime)([[:space:]]+)120/\1\2'$sshlgt'/' -e 's/^(\#)(Banner)([[:space:]]+)(.*)/\2\3\4/' $sshdc;
 
 service ssh restart
+
+
+## Installing necessary CLI apps
+sctn_echo SECONDARY USER CREATION
+
+echo "Creating secondary user: $usr ..." >> $rlog
+adduser --disabled-password --gecos "" $usr
+usermod -aG sudo $usr
+mkdir -m 700 $sdir
+cp ~/.ssh/authorized_keys $sdir
+chmod 600 $sdir/authorized_keys
+chown -R $usr:$usr $sdir
+
+echo "User creatiion finished with success!" >> $rlog
 
 
 ## Unattended-Upgrades configuration section
@@ -261,8 +296,20 @@ up;
 ## Installing necessary CLI apps
 sctn_echo INSTALLATION
 
+# Docker
+# Add Docker’s official GPG key and Use the following command to set up the stable repository
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+# Docker End
+
+## Updating/upgrading
+up;
+   
 # The list of the apps
-appcli="clamav clamav-daemon clamav-freshclam git glances htop iptraf mc ntp ntpdate screen shellcheck sysbench sysv-rc-conf tmux unattended-upgrades"
+# clamav clamav-daemon clamav-freshclam
+appcli="apt-transport-https ca-certificates containerd.io curl docker-ce docker-ce-cli fail2ban git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades"
 
 # The main multi-loop for installing apps/libs
 for a in $appcli; do
@@ -270,39 +317,46 @@ for a in $appcli; do
   inst $a;
 done
 
-blnk_echo
+# Docker-compose manual installation
+inst Docker-compose;
+curl -L "https://github.com/docker/compose/releases/download/1.25.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose >> $rlog && chmod +x /usr/local/bin/docker-compose
 
-
-# ClamAV section: configuration and the first scan
-sctn_echo ANTIVIRUS "(Clam-AV)" >> $rlog
-
-clmcnf=/etc/clamav/freshclam.conf
-rprtfldr=~/ClamAV-Reports
-
-bckup $clmcnf;
-mkdir -p $rprtfldr;
-
-# Enabling "SafeBrowsing true" mode
-enbl_echo SafeBrowsing >> $rlog
-echo "SafeBrowsing true" >> $clmcnf;
-
-# Restarting CLAMAV Daemons
-/etc/init.d/clamav-daemon restart && /etc/init.d/clamav-freshclam restart;
-# clamdscan -V s
-
-# Scanning the whole system and palcing all the infected files list on a particular file
-scn_echo ClamAv >> $rlog
-# This one throws any kind of warnings and errors: clamscan -r / | grep FOUND >> $rprtfldr/clamscan_first_scan.txt >> $rlog
-clamscan --recursive --no-summary --infected / 2>/dev/null | grep FOUND >> $rprtfldr/clamscan_first_scan.txt;
-
-# Crontab: The daily scan
-# This way, Anacron ensures that if the computer is off during the time interval when it is supposed to be scanned by the daemon, it will be scanned next time it is turned on, no matter today or another day.
-echo -e "Creating a \e[1m\e[34mcronjob\e[0m for the ClamAV ..." >> $rlog
-echo -e '#!/bin/bash\n\n/usr/bin/freshclam --quiet;\n/usr/bin/clamscan --recursive --exclude-dir=/media/ --no-summary --infected / 2>/dev/null >> '$rprtfldr'/clamscan_daily_$(date +"%m-%d-%Y").txt;' >> /etc/cron.daily/clamscan.sh && chmod 755 /etc/cron.daily/clamscan.sh;
+# Adding second user to the docker group so that it could execute docker commands
+usermod -aG docker $usr
 
 blnk_echo
 
-# # END: ClamAV section: configuration and the first scan
+
+# # ClamAV section: configuration and the first scan
+# sctn_echo ANTIVIRUS "(Clam-AV)" >> $rlog
+# 
+# clmcnf=/etc/clamav/freshclam.conf
+# rprtfldr=~/ClamAV-Reports
+# 
+# bckup $clmcnf;
+# mkdir -p $rprtfldr;
+# 
+# # Enabling "SafeBrowsing true" mode
+# enbl_echo SafeBrowsing >> $rlog
+# echo "SafeBrowsing true" >> $clmcnf;
+# 
+# # Restarting CLAMAV Daemons
+# /etc/init.d/clamav-daemon restart && /etc/init.d/clamav-freshclam restart;
+# # clamdscan -V s
+# 
+# # Scanning the whole system and palcing all the infected files list on a particular file
+# scn_echo ClamAv >> $rlog
+# # This one throws any kind of warnings and errors: clamscan -r / | grep FOUND >> $rprtfldr/clamscan_first_scan.txt >> $rlog
+# clamscan --recursive --no-summary --infected / 2>/dev/null | grep FOUND >> $rprtfldr/clamscan_first_scan.txt;
+# 
+# # Crontab: The daily scan
+# # This way, Anacron ensures that if the computer is off during the time interval when it is supposed to be scanned by the daemon, it will be scanned next time it is turned on, no matter today or another day.
+# echo -e "Creating a \e[1m\e[34mcronjob\e[0m for the ClamAV ..." >> $rlog
+# echo -e '#!/bin/bash\n\n/usr/bin/freshclam --quiet;\n/usr/bin/clamscan --recursive --exclude-dir=/media/ --no-summary --infected / 2>/dev/null >> '$rprtfldr'/clamscan_daily_$(date +"%m-%d-%Y").txt;' >> /etc/cron.daily/clamscan.sh && chmod 755 /etc/cron.daily/clamscan.sh;
+# 
+# blnk_echo
+# 
+# # # END: ClamAV section: configuration and the first scan
 
 
 # # Cloning OpenVPN installation script
@@ -314,6 +368,23 @@ blnk_echo
 # service openvpn@server restart;
 # blnk_echo
 
+
+# Here goes fail2ban configuration
+sctn_echo FAIL2BAN CONFIGURATION
+
+# creating the working file based on the old one
+cp $f2bc $f2bl
+
+echo "Replacing the values in $f2bl ..." >> $rlog
+
+# The replacing process
+sed -i "s/^bantime  = 600/bantime  = 1800/" $f2bl && sed -i ':a;N;$!ba;s/banned.\nmaxretry = 5/banned.\nmaxretry = 2/g' $f2bl && sed -i "s/^destemail = root@localhost/destemail = me@iprofor.it/" $f2bl && sed -i "s/^sender = root@localhost/sender = noc@mariola.ro/" $f2bl && sed -i "s/^action = %(action_)s/action = %(action_mwl)s/" $f2bl && sed -i "s/^port    = ssh/port    = 28893/" $f2bl
+
+# Restart the daemon
+echo "Restarting fail2ban ..." >> $rlog
+systemctl restart fail2ban
+
+blnk_echo
 
 # @NOTE Will have to modify this loop to echo "Everything went well"  otherwise echo that something went wrong
 # if [[ "$EUID" -ne 0 ]]; then
