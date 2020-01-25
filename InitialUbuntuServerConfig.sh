@@ -277,7 +277,7 @@ Unattended-Upgrade::Package-Blacklist {
   # The results of unattended-upgrades will be logged to /var/log/unattended-upgrades.
   # For more tweaks nano /etc/apt/apt.conf.d/50unattended-upgrades
   
-  blnk_echo >> $rlog
+  blnk_echo
   
 else
   nofile_echo $unat20 or $unat50 or $unat10
@@ -289,10 +289,6 @@ blnk_echo
 # END: Unattended-Upgrades configuration section
 
 
-## Updating/upgrading
-up;
-
-
 ## Installing necessary CLI apps
 sctn_echo INSTALLATION
 
@@ -302,6 +298,8 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && add-a
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
    $(lsb_release -cs) \
    stable"
+
+blnk_echo
 # Docker End
 
 ## Updating/upgrading
@@ -309,12 +307,21 @@ up;
    
 # The list of the apps
 # clamav clamav-daemon clamav-freshclam
-appcli="apt-transport-https ca-certificates containerd.io curl docker-ce docker-ce-cli fail2ban git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades"
+appcli="apt-transport-https ca-certificates curl fail2ban git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades"
 
 # The main multi-loop for installing apps/libs
 for a in $appcli; do
   inst_echo $a;
   inst $a;
+done
+
+# Docker installation loop
+appcli2="docker-ce docker-ce-cli containerd.io"
+
+# The main multi-loop for installing apps/libs
+for b in $appcli2; do
+  inst_echo $b;
+  inst $b;
 done
 
 # Docker-compose manual installation
@@ -323,8 +330,6 @@ curl -L "https://github.com/docker/compose/releases/download/1.25.3/docker-compo
 
 # Adding second user to the docker group so that it could execute docker commands
 usermod -aG docker $usr
-
-blnk_echo
 
 
 # # ClamAV section: configuration and the first scan
