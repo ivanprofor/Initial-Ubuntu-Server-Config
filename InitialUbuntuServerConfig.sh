@@ -108,7 +108,7 @@ bckup () {
 # Updates/upgrades the system
 up () {
   sctn_echo UPDATES
-  upvar="update upgrade dist-upgrade";
+  upvar="update upgrade dist-upgrade full-upgrade autoremove";
   for upup in $upvar; do
     echo -e "Executing \e[1m\e[34m$upup\e[0m" >> $rlog
     #apt-get -yqq $upup > /dev/null 2>&1 >> $rlog
@@ -316,8 +316,8 @@ done
 up;
 
 # Docker installation
-# inst_echo docker-ce docker-ce-cli containerd.io;
-# curl -sSL https://get.docker.com/ | sh >> $rlog;
+inst_echo docker-ce docker-ce-cli containerd.io;
+curl -sSL https://get.docker.com/ | sh >> $rlog;
 
 blnk_echo
 
