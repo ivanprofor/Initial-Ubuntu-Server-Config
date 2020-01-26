@@ -304,7 +304,7 @@ blnk_echo
    
 # The list of the apps
 # clamav clamav-daemon clamav-freshclam
-appcli="apt-transport-https ca-certificates curl fail2ban git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades"
+appcli="apt-transport-https ca-certificates curl fail2ban git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades aufs-tools cgroupfs-mount cgroup-lite pigz libltdl7"
 
 # The main multi-loop for installing apps/libs
 for a in $appcli; do
@@ -315,14 +315,9 @@ done
 ## Updating/upgrading
 up;
 
-# Docker installation loop
-appcli2="docker-ce docker-ce-cli containerd.io"
-
-# The main multi-loop for installing apps/libs
-for b in $appcli2; do
-  inst_echo $b;
-  apt-get -y install $b;
-done
+# Docker installation
+# inst_echo docker-ce docker-ce-cli containerd.io;
+# curl -sSL https://get.docker.com/ | sh >> $rlog;
 
 blnk_echo
 
