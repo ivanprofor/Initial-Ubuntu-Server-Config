@@ -33,7 +33,7 @@ bckp=bckp;
 dn=/dev/null 2>&1
 
 # Secondary user
-usr=(bootik)
+usr=(iprofor)
 # Secondary's user home SSH directory
 sdir=(/home/$usr/.ssh)
 
