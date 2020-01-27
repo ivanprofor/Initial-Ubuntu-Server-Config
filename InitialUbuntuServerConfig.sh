@@ -2,6 +2,7 @@
 # @TODO ntpdate
 # @TODO rkhunter
 # @TODO audit or intrusion system
+# @TODO configure mta
 
 # Made with love to be executed on an Ubuntu 16.04 LTS droplet
 
