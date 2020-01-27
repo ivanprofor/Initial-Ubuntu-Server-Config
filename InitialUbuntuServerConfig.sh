@@ -51,7 +51,8 @@ dstml=me@iprofor.it
 # sender email
 sndr=noc@mariola.ro
 # action: will ban and send an email with the WhoIs report and all relevant lines in the log file.
-actn="%(action_mwl)s"
+actn="%(action_)s"
+# actn="%(action_mwl)s"
 
 
 # Echoes that there is no X file
@@ -391,7 +392,7 @@ echo "Replacing the values in $f2bl ..." >> $rlog
 blnk_echo
 
 # The replacing process
-sed -i "s/^bantime  = 600/bantime  = 1800/" $f2bl && sed -i ':a;N;$!ba;s/banned.\nmaxretry = 5/banned.\nmaxretry = 2/g' $f2bl && sed -i "s/^destemail = root@localhost/destemail = me@iprofor.it/" $f2bl && sed -i "s/^sender = root@localhost/sender = noc@mariola.ro/" $f2bl && sed -i "s/^action = %(action_)s/action = %(action_mwl)s/" $f2bl && sed -i "s/^port    = ssh/port    = 28893/" $f2bl
+sed -i "s/^bantime  = 600/bantime  = $bntm/" $f2bl && sed -i ':a;N;$!ba;s/banned.\nmaxretry = 5/banned.\nmaxretry = '$mxrt'/g' $f2bl && sed -i "s/^destemail = root@localhost/destemail = $dstml/" $f2bl && sed -i "s/^sender = root@localhost/sender = $sndr/" $f2bl && sed -i "s/^action = %(action_)s/action = $actn/" $f2bl && sed -i "s/^port    = ssh/port    = $sshp/" $f2bl
 
 # Restart the daemon
 echo "Restarting fail2ban ..." >> $rlog
