@@ -12,6 +12,10 @@
 # Define the secondary user
 usr=(iprofor)
 
+# Secondary's user home SSH directory
+sdir=(/home/$usr/.ssh)
+
+
 # SSH port
 sshp=28893
 
@@ -20,6 +24,29 @@ sshdc=/etc/ssh/sshd_config
 
 # LoginGraceTime
 sshlgt=1440m
+
+
+# For fail2Ban jail.local
+f2bc=(/etc/fail2ban/jail.conf)
+f2bl=(/etc/fail2ban/jail.local)
+
+# bantime
+bntm=1800
+
+# findtime
+fntm=600
+
+# maxretry
+mxrt=3
+
+# Destination email
+dstml=ivan.profor@dirigio.it
+
+# sender email
+sndr=noc@dirigio.it
+
+# action: will ban and send an email with the WhoIs report and all relevant lines in the log file.
+actn="%(action_)s"
 
 
 blnk_echo() {
@@ -32,8 +59,21 @@ inst () {
   blnk_echo
 }
 
+# Echoes that a specific application ($@) is being installed
+inst_echo () {
+  echo -e "Installing \e[1m\e[34m$@\e[0m"
+}
+
 sctn_echo () {
   echo -e "\e[1m\e[33m$@\e[0m\n=================================================================================================="
+}
+
+chg_unat10 () {
+  # The following options will have unattended-upgrades check for updates every day while cleaning out the local download archive each week.
+  echo "APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::AutocleanInterval "7";
+  APT::Periodic::Unattended-Upgrade "1";" > $unat10;
 }
 
 # Backing up a given ($@) file/directory
@@ -41,6 +81,18 @@ bckup () {
   echo -e "Backing up: \e[1m\e[34m$@\e[0m ..."
   cp -r $@ $@_$(date +"%m-%d-%Y").bckp
 }
+
+# Updates/upgrades the system
+up () {
+  sctn_echo UPDATES
+  upvar="update upgrade dist-upgrade full-upgrade autoremove";
+  for upup in $upvar; do
+    echo -e "Executing \e[1m\e[34m$upup\e[0m"
+    DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical apt-get -q -q -y -o "Dpkg::Options::=--force-confdef" -o "Dpkg::Options::=--force-confold" $upup
+  done
+  blnk_echo;
+}
+
 
 ## ------------------------------------------
 ## END: VARIABLES
@@ -72,6 +124,24 @@ echo "Configuring SSHD Daemon ...";
 sed -i -re 's/^(Port)([[:space:]]+)22/\1\2'$sshp'/' -e 's/^(LoginGraceTime)([[:space:]]+)120/\1\2'$sshlgt'/' -e 's/^(\#)(Banner)([[:space:]]+)(.*)/\2\3\4/' $sshdc;
 
 systemctl restart ssh;
+
+
+# SECONDARY USER
+sctn_echo SECONDARY USER CREATION
+
+echo "Creating secondary user: $usr ...";
+adduser --disabled-password --gecos "" $usr
+usermod -aG sudo $usr
+mkdir -m 700 $sdir
+cp ~/.ssh/authorized_keys $sdir
+chmod 600 $sdir/authorized_keys
+chown -R $usr:$usr $sdir
+
+echo "User creatiion finished with success!";
+
+
+## Updating/upgrading
+up;
 
 
 ## Unattended-Upgrades configuration
@@ -186,3 +256,85 @@ blnk_echo
 ## END: Unattended-Upgrades configuration
 
 
+## Installing necessary CLI apps
+sctn_echo INSTALLATION
+
+# Docker
+# Add Docker’s official GPG key and Use the following command to set up the stable repository
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+
+blnk_echo
+# Docker End
+
+## Updating/upgrading
+up;
+   
+# The list of the apps
+appcli="apt-transport-https ca-certificates curl fail2ban git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades aufs-tools cgroupfs-mount cgroup-lite pigz libltdl7 docker-ce docker-ce-cli containerd.io"
+
+# The main multi-loop for installing apps/libs
+for a in $appcli; do
+  inst_echo $a;
+  inst $a;
+done
+
+## Updating/upgrading
+up;
+
+# Docker installation
+# inst_echo docker-ce docker-ce-cli containerd.io;
+# curl -sSL https://get.docker.com/ | sh;
+# blnk_echo
+
+# Docker-compose manual installation
+inst_echo Docker-compose;
+curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose
+
+blnk_echo
+
+
+# Adding second user to the docker group so that it could execute docker commands
+echo "Adding second user $usr to the docker group ..."
+usermod -aG docker $usr
+
+blnk_echo
+
+
+# # Cloning OpenVPN installation script
+# sctn_echo OPENVPN
+# cd ~ && git clone https://github.com/iprofor/OpenVPN-install && cd OpenVPN-install && chmod 755 openvpn-install.sh && /bin/bash openvpn-install.sh;
+#
+# echo "Enabling multiple logins ..."
+# echo "duplicate-cn" >> /etc/openvpn/server.conf;
+# service openvpn@server restart;
+# blnk_echo
+
+
+# Here goes fail2ban configuration
+sctn_echo FAIL2BAN CONFIGURATION
+blnk_echo
+
+# creating the working file based on the old one
+cp $f2bc $f2bl
+
+echo "Replacing the values in $f2bl ..."
+
+blnk_echo
+
+# The replacing process
+sed -i "s/^bantime  = 600/bantime  = $bntm/" $f2bl && sed -i ':a;N;$!ba;s/banned.\nmaxretry = 5/banned.\nmaxretry = '$mxrt'/g' $f2bl && sed -i "s/^destemail = root@localhost/destemail = $dstml/" $f2bl && sed -i "s/^sender = root@localhost/sender = $sndr/" $f2bl && sed -i "s/^action = %(action_)s/action = $actn/" $f2bl && sed -i "s/^port    = ssh/port    = $sshp/" $f2bl
+
+# Restart the daemon
+echo "Restarting fail2ban ..."
+systemctl restart fail2ban;
+
+blnk_echo
+
+## Updating/upgrading
+up;
+
+
+exit 0;
