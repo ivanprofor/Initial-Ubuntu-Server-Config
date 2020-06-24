@@ -5,6 +5,10 @@
 
 # Run the script as root!
 
+# IMPORTANT! After the script execution one's has to manually set the password for the user $usr being logged in as root   
+
+# @TODO: configure logs saving of the installation process 
+# @TODO: configure email to be sent after the installation with logs 
 
 ## VARIABLES
 ## -----------------------------------
@@ -101,6 +105,9 @@ up () {
 
 ## THE SCRIPT
 
+## TIME CONFIGURATION
+timedatectl set-timezone Europe/Chisinau
+
 
 ## UFW
 blnk_echo;
@@ -137,14 +144,14 @@ cp ~/.ssh/authorized_keys $sdir
 chmod 600 $sdir/authorized_keys
 chown -R $usr:$usr $sdir
 
-echo "User creatiion finished with success!";
+echo "User creation finished with success!";
 
 
-## Updating/upgrading
+## UPDATING/UPGRADING
 up;
 
 
-## Unattended-Upgrades configuration
+## UNATTENDED-UPGRADES CONFIGURATION
 blnk_echo
 sctn_echo AUTOUPDATES "(Unattended-Upgrades)"
 
@@ -256,10 +263,10 @@ blnk_echo
 ## END: Unattended-Upgrades configuration
 
 
-## Installing necessary CLI apps
+## INSTALLATION OF THE NECESSARY CLI APPS
 sctn_echo INSTALLATION
 
-# Docker
+## Docker
 # Add Docker’s official GPG key and Use the following command to set up the stable repository
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && add-apt-repository \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
@@ -269,7 +276,7 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && add-a
 blnk_echo
 # Docker End
 
-## Updating/upgrading
+## UPDATING/UPGRADING
 up;
    
 # The list of the apps
@@ -281,7 +288,7 @@ for a in $appcli; do
   inst $a;
 done
 
-## Updating/upgrading
+## UPDATING/UPGRADING
 up;
 
 # Docker installation
@@ -289,31 +296,21 @@ up;
 # curl -sSL https://get.docker.com/ | sh;
 # blnk_echo
 
-# Docker-compose manual installation
+## DOCKER-COMPOSE MANUAL INSTALLATION
 inst_echo Docker-compose;
 curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose
 
 blnk_echo
 
 
-# Adding second user to the docker group so that it could execute docker commands
+## Adding second user to the docker group so that it could execute docker commands
 echo "Adding second user $usr to the docker group ..."
 usermod -aG docker $usr
 
 blnk_echo
 
 
-# # Cloning OpenVPN installation script
-# sctn_echo OPENVPN
-# cd ~ && git clone https://github.com/iprofor/OpenVPN-install && cd OpenVPN-install && chmod 755 openvpn-install.sh && /bin/bash openvpn-install.sh;
-#
-# echo "Enabling multiple logins ..."
-# echo "duplicate-cn" >> /etc/openvpn/server.conf;
-# service openvpn@server restart;
-# blnk_echo
-
-
-# Here goes fail2ban configuration
+## FAIL2BAN CONFIGURATION
 sctn_echo FAIL2BAN CONFIGURATION
 blnk_echo
 
@@ -333,7 +330,8 @@ systemctl restart fail2ban;
 
 blnk_echo
 
-## Updating/upgrading
+
+## UPDATING/UPGRADING
 up;
 
 
