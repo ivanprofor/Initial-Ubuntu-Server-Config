@@ -52,6 +52,12 @@ sndr=noc@dirigio.it
 # action: will ban and send an email with the WhoIs report and all relevant lines in the log file.
 actn="%(action_)s"
 
+## ------------------------------------------
+## END: VARIABLES
+
+
+## FUNCTIONS
+## -----------------------------------
 
 blnk_echo() {
   echo ""
@@ -99,7 +105,7 @@ up () {
 
 
 ## ------------------------------------------
-## END: VARIABLES
+## END: FUNCTIONS
 
 
 
