@@ -149,11 +149,13 @@ sctn_echo SECONDARY USER CREATION
 
 echo "Creating secondary user: $usr ...";
 # use -1, otherwise openssl will default to -crypt and truncate the password at 8 chars with a "Warning: truncating password to 8 characters" message.
-useradd $usr -p $(openssl passwd -1 $psw) -m -s /usr/bin/fish
+useradd $usr -p $(openssl passwd -1 $psw) -m -s /bin/bash
+# useradd $usr -p $(openssl passwd -1 $psw) -m -s /usr/bin/fish
 # enforce $usr to change its password on the ext logon
 passwd -e $usr
 usermod -aG sudo $usr
 mkdir -m 700 $sdir
+# cp ~/.ssh/authorized_keys $sdir
 mv ~/.ssh/authorized_keys $sdir
 chmod 600 $sdir/authorized_keys
 chown -R $usr:$usr $sdir
@@ -170,6 +172,7 @@ echo "Configuring SSHD Daemon ...";
 
 # Switching default SSH port to $sshp && changing LoginGraceTime to 24h (1440m) && also enabling #Banner /etc/issue.net
 sed -i -re 's/^(Port)([[:space:]]+)22/\1\2'$sshp'/' -e 's/^(LoginGraceTime)([[:space:]]+)120/\1\2'$sshlgt'/' -e 's/^(\#)(Banner)([[:space:]]+)(.*)/\2\3\4/' -e "s/^PermitRootLogin yes/PermitRootLogin no/" $sshdc;
+#  -e "s/^PermitRootLogin yes/PermitRootLogin no/"
 
 echo "Hello, mozefukkers!" > /etc/issue.net
 
@@ -315,7 +318,8 @@ apt-add-repository -y ppa:fish-shell/release-3
 up;
    
 # The list of the apps
-appcli="apt-transport-https ca-certificates curl fail2ban git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades aufs-tools cgroupfs-mount cgroup-lite pigz libltdl7 docker-ce docker-ce-cli containerd.io fish"
+# fail2ban
+appcli="apt-transport-https ca-certificates curl git glances gnupg-agent htop iptraf mc ntp ntpdate screen shellcheck software-properties-common sysbench sysv-rc-conf tmux unattended-upgrades aufs-tools cgroupfs-mount cgroup-lite pigz libltdl7 docker-ce docker-ce-cli containerd.io fish"
 
 # The main multi-loop for installing apps/libs
 for a in $appcli; do
@@ -359,7 +363,7 @@ blnk_echo
 # The replacing process
 sed -i "s/^bantime  = 600/bantime  = $bntm/" $f2bl && sed -i ':a;N;$!ba;s/banned.\nmaxretry = 5/banned.\nmaxretry = '$mxrt'/g' $f2bl && sed -i "s/^destemail = root@localhost/destemail = $dstml/" $f2bl && sed -i "s/^sender = root@localhost/sender = $sndr/" $f2bl && sed -i "s/^action = %(action_)s/action = $actn/" $f2bl && sed -i "s/^port    = ssh/port    = $sshp/" $f2bl
 
-# Restart the daemon
+# # Restart the daemon
 echo "Restarting fail2ban ..."
 systemctl restart fail2ban;
 
@@ -369,7 +373,7 @@ blnk_echo
 ## UPDATING/UPGRADING
 up;
 
-# changing the default environment to Fish
+# changing the default environment to Fish for the root user
 chsh -s `which fish`;
 
 exit 0;
