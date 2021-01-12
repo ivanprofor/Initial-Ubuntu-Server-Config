@@ -151,6 +151,7 @@ echo "Creating secondary user: $usr ...";
 # use -1, otherwise openssl will default to -crypt and truncate the password at 8 chars with a "Warning: truncating password to 8 characters" message.
 useradd $usr -p $(openssl passwd -1 $psw) -m -s /bin/bash
 # useradd $usr -p $(openssl passwd -1 $psw) -m -s /usr/bin/fish
+
 # enforce $usr to change its password on the ext logon
 passwd -e $usr
 usermod -aG sudo $usr
